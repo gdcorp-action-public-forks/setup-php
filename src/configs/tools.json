@@ -222,6 +222,14 @@
     "version_prefix": "v",
     "version_parameter": "-V"
   },
+  "castor": {
+    "type": "custom-function",
+    "domain": "https://github.com",
+    "repository": "jolicode/castor",
+    "function": "castor",
+    "version_prefix": "v",
+    "version_parameter": "-V"
+  },
   "composer": {
     "type": "custom-function",
     "domain": "https://getcomposer.org",
@@ -268,6 +276,7 @@
   "phpunit": {
     "type": "custom-function",
     "repository": "sebastianbergmann/phpunit",
+    "packagist": "phpunit/phpunit",
     "domain": "https://phar.phpunit.de",
     "function": "phpunit",
     "version_prefix": "",

@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import * as fetch from './fetch';
+import * as packagist from './packagist';
 import * as utils from './utils';
 
 type RS = Record<string, string>;
@@ -230,6 +231,21 @@ export async function addBlackfirePlayer(data: RS): Promise<string> {
 }
 
 /**
+ * Function to add Castor
+ *
+ * @param data
+ */
+export async function addCastor(data: RS): Promise<string> {
+  data['tool'] = 'castor.' + data['os'].replace('win32', 'windows') + '-amd64';
+  data['url'] = await getUrl(data);
+  data['tool'] = 'castor';
+  data['version_parameter'] = fs.existsSync('castor.php')
+    ? data['version_parameter']
+    : '';
+  return await addArchive(data);
+}
+
+/**
  * Function to add composer
  *
  * @param data
@@ -392,6 +408,11 @@ export async function addPhive(data: RS): Promise<string> {
  * @param data
  */
 export async function addPHPUnitTools(data: RS): Promise<string> {
+  if (data['version'] === 'latest') {
+    data['version'] =
+      (await packagist.search(data['packagist'], data['php_version'])) ??
+      'latest';
+  }
   data['url'] = await getPharUrl(data);
   return await addArchive(data);
 }
@@ -458,6 +479,7 @@ export async function getData(
   data['extension'] ??= '.phar';
   data['os'] = os;
   data['php_version'] = php_version;
+  data['packagist'] ??= data['repository'];
   data['prefix'] = data['github'] === data['domain'] ? 'releases' : '';
   data['verb'] = data['github'] === data['domain'] ? 'download' : '';
   data['fetch_latest'] ??= 'false';
@@ -472,6 +494,7 @@ export async function getData(
 }
 
 export const functionRecord: Record<string, (data: RS) => Promise<string>> = {
+  castor: addCastor,
   composer: addComposer,
   deployer: addDeployer,
   dev_tools: addDevTools,

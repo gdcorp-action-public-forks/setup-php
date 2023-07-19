@@ -1,3 +1,4 @@
+import fs = require('fs');
 import * as tools from '../src/tools';
 
 interface IData {
@@ -66,6 +67,22 @@ jest.mock('../src/fetch', () => ({
         } else {
           return {error: 'Invalid token'};
         }
+      }
+    )
+}));
+
+jest.mock('../src/packagist', () => ({
+  search: jest
+    .fn()
+    .mockImplementation(
+      async (
+        package_name: string,
+        php_version: string
+      ): Promise<string | null> => {
+        if (package_name === 'phpunit/phpunit') {
+          return php_version + '.0';
+        }
+        return null;
       }
     )
 }));
@@ -387,7 +404,7 @@ describe('Tools tests', () => {
         'add_tool https://github.com/phpDocumentor/phpDocumentor/releases/latest/download/phpDocumentor.phar phpDocumentor "--version"',
         'add_composer_tool phplint phplint overtrue/',
         'add_tool https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar phpstan "-V"',
-        'add_tool https://phar.phpunit.de/phpunit.phar phpunit "--version"',
+        'add_tool https://phar.phpunit.de/phpunit-7.4.0.phar phpunit "--version"',
         'add_pecl',
         'add_tool https://www.phing.info/get/phing-latest.phar phing "-v"',
         'add_composer_tool phinx phinx robmorgan/ scoped',
@@ -511,9 +528,35 @@ describe('Tools tests', () => {
   );
 
   it.each`
+    version     | os           | uri
+    ${'latest'} | ${'linux'}   | ${'releases/latest/download/castor.linux-amd64.phar'}
+    ${'0.5.1'}  | ${'linux'}   | ${'releases/download/v0.5.1/castor.linux-amd64.phar'}
+    ${'latest'} | ${'darwin'}  | ${'releases/latest/download/castor.darwin-amd64.phar'}
+    ${'0.5.1'}  | ${'darwin'}  | ${'releases/download/v0.5.1/castor.darwin-amd64.phar'}
+    ${'latest'} | ${'win32'}   | ${'releases/latest/download/castor.windows-amd64.phar'}
+    ${'0.5.1'}  | ${'win32'}   | ${'releases/download/v0.5.1/castor.windows-amd64.phar castor -V'}
+    ${'latest'} | ${'openbsd'} | ${'Platform openbsd is not supported'}
+  `('checking addCastor: $version, $os', async ({version, os, uri}) => {
+    const data = getData({
+      tool: 'castor',
+      php_version: '8.1',
+      version_prefix: 'v',
+      version: version,
+      os: os
+    });
+    if (os === 'win32' && version === '0.5.1') {
+      fs.writeFileSync('castor.php', '');
+      expect(await tools.addCastor(data)).toContain(uri);
+      fs.unlinkSync('castor.php');
+    } else {
+      expect(await tools.addCastor(data)).toContain(uri);
+    }
+  });
+
+  it.each`
     tools_csv                                             | script
     ${'none'}                                             | ${''}
-    ${'none, phpunit'}                                    | ${'\nstep_log "Setup Tools"\nadd_tool https://github.com/shivammathur/composer-cache/releases/latest/download/composer-7.4-stable.phar,https://dl.cloudsmith.io/public/shivammathur/composer-cache/raw/files/composer-7.4-stable.phar,https://getcomposer.org/composer-stable.phar composer latest\n\nadd_tool https://phar.phpunit.de/phpunit.phar phpunit "--version"'}
+    ${'none, phpunit'}                                    | ${'\nstep_log "Setup Tools"\nadd_tool https://github.com/shivammathur/composer-cache/releases/latest/download/composer-7.4-stable.phar,https://dl.cloudsmith.io/public/shivammathur/composer-cache/raw/files/composer-7.4-stable.phar,https://getcomposer.org/composer-stable.phar composer latest\n\nadd_tool https://phar.phpunit.de/phpunit-7.4.0.phar phpunit "--version"'}
     ${'composer:preview'}                                 | ${'add_tool https://github.com/shivammathur/composer-cache/releases/latest/download/composer-7.4-preview.phar,https://dl.cloudsmith.io/public/shivammathur/composer-cache/raw/files/composer-7.4-preview.phar,https://getcomposer.org/composer-preview.phar composer preview'}
     ${'composer, composer:v1'}                            | ${'add_tool https://github.com/shivammathur/composer-cache/releases/latest/download/composer-7.4-1.phar,https://dl.cloudsmith.io/public/shivammathur/composer-cache/raw/files/composer-7.4-1.phar,https://getcomposer.org/composer-1.phar composer'}
     ${'composer:v1, composer:preview, composer:snapshot'} | ${'add_tool https://github.com/shivammathur/composer-cache/releases/latest/download/composer-7.4-snapshot.phar,https://dl.cloudsmith.io/public/shivammathur/composer-cache/raw/files/composer-7.4-snapshot.phar,https://getcomposer.org/composer.phar composer snapshot'}
@@ -540,4 +583,22 @@ describe('Tools tests', () => {
     process.env['GITHUB_TOKEN'] = token;
     expect(await tools.addTools(tools_csv, '7.4', 'linux')).toContain(script);
   });
+
+  it.each`
+    tools_csv    | php_version | resolved
+    ${'phpunit'} | ${'8.2'}    | ${'/phpunit-8.2.0.phar'}
+    ${'phpunit'} | ${'8.1'}    | ${'/phpunit-8.1.0.phar'}
+    ${'phpunit'} | ${'8.0'}    | ${'/phpunit-8.0.0.phar'}
+    ${'phpunit'} | ${'7.3'}    | ${'/phpunit-7.3.0.phar'}
+    ${'phpunit'} | ${'7.2'}    | ${'/phpunit-7.2.0.phar'}
+    ${'phpunit'} | ${'7.1'}    | ${'/phpunit-7.1.0.phar'}
+    ${'phpunit'} | ${'7.0'}    | ${'/phpunit-7.0.0.phar'}
+  `(
+    'checking error: $tools_csv',
+    async ({tools_csv, php_version, resolved}) => {
+      expect(await tools.addTools(tools_csv, php_version, 'linux')).toContain(
+        resolved
+      );
+    }
+  );
 });
