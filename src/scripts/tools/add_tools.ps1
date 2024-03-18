@@ -23,7 +23,7 @@ Function Edit-ComposerConfig() {
   if (-not(Test-Path $composer_json)) {
     Set-Content -Path $composer_json -Value "{}"
   }
-  Add-EnvPATH $src\configs\composer.env
+  Set-ComposerEnv
   Add-Path $composer_bin
   Set-ComposerAuth
 }
@@ -50,6 +50,14 @@ Function Set-ComposerAuth() {
   if($composer_auth.length) {
     Add-Env COMPOSER_AUTH ('{' + ($composer_auth -join ',') + '}')
   }
+}
+
+# Function to set composer environment variables.
+Function Set-ComposerEnv() {
+  if ($env:COMPOSER_PROCESS_TIMEOUT) {
+    (Get-Content $src\configs\composer.env -Raw) -replace '(?m)^COMPOSER_PROCESS_TIMEOUT=.*$', "COMPOSER_PROCESS_TIMEOUT=$env:COMPOSER_PROCESS_TIMEOUT" | Set-Content $src\configs\composer.env
+  }
+  Add-EnvPATH $src\configs\composer.env
 }
 
 # Function to extract tool version.
@@ -85,7 +93,9 @@ Function Add-ToolsHelper() {
     $tool
   )
   $extensions = @();
-  if($tool -eq "codeception") {
+  if($tool -eq "box") {
+    $extensions += @('iconv', 'mbstring', 'phar', 'sodium')
+  } elseif($tool -eq "codeception") {
     $extensions += @('json', 'mbstring')
     Copy-Item $env:codeception_bin\codecept.bat -Destination $env:codeception_bin\codeception.bat
   } elseif($tool -eq "composer") {

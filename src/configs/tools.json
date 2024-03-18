@@ -1,4 +1,13 @@
 {
+  "box": {
+    "type": "phar",
+    "repository": "box-project/box",
+    "packagist": "humbug/box",
+    "extension": ".phar",
+    "domain": "https://github.com",
+    "version_prefix": "",
+    "version_parameter": "--version"
+  },
   "churn": {
     "type": "phar",
     "repository": "bmitch/churn-php",
@@ -64,9 +73,18 @@
     "version_prefix": "v",
     "version_parameter": "-V"
   },
+  "php-scoper": {
+    "type": "phar",
+    "repository": "humbug/php-scoper",
+    "packagist": "humbug/php-scoper",
+    "extension": ".phar",
+    "domain": "https://github.com",
+    "version_prefix": "",
+    "version_parameter": "--version"
+  },
   "phpcbf": {
     "type": "phar",
-    "repository": "squizlabs/PHP_CodeSniffer",
+    "repository": "PHPCSStandards/PHP_CodeSniffer",
     "extension": ".phar",
     "domain": "https://github.com",
     "version_prefix": "",
@@ -74,7 +92,7 @@
   },
   "phpcs": {
     "type": "phar",
-    "repository": "squizlabs/PHP_CodeSniffer",
+    "repository": "PHPCSStandards/PHP_CodeSniffer",
     "extension": ".phar",
     "domain": "https://github.com",
     "version_prefix": "",

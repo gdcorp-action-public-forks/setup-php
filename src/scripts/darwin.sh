@@ -1,11 +1,21 @@
-# Disable dependency extensions
-disable_dependency_extensions() {
-  local extension=$1
+# Handle dependency extensions
+handle_dependency_extensions() {
+  local formula=$1
+  local extension=$2
   formula_file="${tap_dir:?}/$ext_tap/Formula/$extension@${version:?}.rb"
+  [ -e "$formula_file" ] || formula_file="$tap_dir/$ext_tap/Formula/$formula@$version.rb"
   if [ -e "$formula_file" ]; then
     IFS=" " read -r -a dependency_extensions <<< "$(grep -Eo "shivammathur.*@" "$formula_file" | xargs -I {} -n 1 basename '{}' | cut -d '@' -f 1 | tr '\n' ' ')"
     for dependency_extension in "${dependency_extensions[@]}"; do
       sudo sed -Ei '' "/=(.*\/)?\"?$dependency_extension(.so)?$/d" "${ini_file:?}"
+    done
+  fi
+  suffix="$(get_php_formula_suffix)"
+  if [[ -n "$suffix" ]]; then
+    brew_opts=(-sf)
+    patch_abstract_file >/dev/null 2>&1
+    for dependency_extension in "${dependency_extensions[@]}"; do
+        brew install "${brew_opts[@]}" "$ext_tap/$dependency_extension@$version" >/dev/null 2>&1 && copy_brew_extensions "$dependency_extension"
     done
   fi
 }
@@ -43,7 +53,9 @@ copy_brew_extensions() {
     extension_file="${brew_prefix:?}/opt/$dependency/$(get_extension_from_formula "${dependency%@*}").so"
     [ -e "$extension_file" ] && sudo cp "$extension_file" "$ext_dir"
   done
-  sudo find -- "$brew_prefix"/Cellar/"$formula"@"$version" -name "*.dylib" -exec cp {} "$ext_dir" \;
+  if [ -d "$brew_prefix"/Cellar/"$formula"@"$version" ]; then
+    sudo find -- "$brew_prefix"/Cellar/"$formula"@"$version" -name "*.dylib" -exec cp {} "$ext_dir" \;
+  fi
 }
 
 # Function to install a php extension from shivammathur/extensions tap.
@@ -59,11 +71,19 @@ add_brew_extension() {
     add_brew_tap "$ext_tap"
     sudo mv "$tap_dir"/"$ext_tap"/.github/deps/"$formula"/* "${core_repo:?}/Formula/" 2>/dev/null || true
     update_dependencies >/dev/null 2>&1
-    disable_dependency_extensions "$extension" >/dev/null 2>&1
-    brew install -f "$ext_tap/$formula@$version" >/dev/null 2>&1
-    copy_brew_extensions "$formula"
+    handle_dependency_extensions "$formula" "$extension" >/dev/null 2>&1
+    (brew install "${brew_opts[@]}" "$ext_tap/$formula@$version" >/dev/null 2>&1 && copy_brew_extensions "$formula") || pecl_install "$extension" >/dev/null 2>&1
     add_extension_log "$extension" "Installed and enabled"
   fi
+}
+
+# Function to patch the abstract file in the extensions tap.
+patch_abstract_file() {
+    abstract_path="$tap_dir"/"$ext_tap"/Abstract/abstract-php-extension.rb
+    if [[ -e "$abstract_path" && ! -e /tmp/abstract_patch ]]; then
+        echo '' | sudo tee /tmp/abstract_patch >/dev/null 2>&1
+        sudo sed -i '' -e "s|php@#{\(.*\)}|php@#{\1}$suffix|g" -e "s|php_version /|\"#{php_version}$suffix\" /|g" "$abstract_path"
+    fi
 }
 
 # Helper function to add an extension.
@@ -104,6 +124,15 @@ link_libraries() {
   done
 }
 
+# Link opcache extension to extensions directory.
+link_opcache() {
+  opcache_ini="$brew_prefix"/etc/php/"$version"/conf.d/ext-opcache.ini
+  if [ -e "$opcache_ini" ]; then
+    opcache_ext=$(grep -Eo "zend_extension.*opcache.*\.so" "$opcache_ini" | cut -d '"' -f 2)
+    sudo ln -sf "$opcache_ext" "$ext_dir"
+  fi
+}
+
 # Patch brew to overwrite packages.
 patch_brew() {
   formula_installer="${brew_repo:?}"/Library/Homebrew/formula_installer.rb
@@ -116,7 +145,8 @@ patch_brew() {
 # Helper function to update the dependencies.
 update_dependencies_helper() {
   dependency=$1
-  get -q -n "$core_repo/Formula/$dependency.rb" "https://raw.githubusercontent.com/Homebrew/homebrew-core/master/Formula/$dependency.rb"
+  [[ "${dependency:0:3}" = "lib" ]] && prefix=lib || prefix="${dependency:0:1}"
+  get -q -n "$core_repo/Formula/$prefix/$dependency.rb" "https://raw.githubusercontent.com/Homebrew/homebrew-core/master/Formula/$prefix/$dependency.rb"
   link_libraries "$dependency"
 }
 
@@ -124,18 +154,7 @@ update_dependencies_helper() {
 update_dependencies() {
   patch_brew
   if ! [ -e /tmp/update_dependencies ]; then
-    if [ "${runner:?}" != "self-hosted" ] && [ "${ImageOS:-}" != "" ] && [ "${ImageVersion:-}" != "" ]; then
-      deps_file="$tap_dir/$php_tap/.github/deps/${ImageOS:?}_${ImageVersion:?}"
-      if [ -e "$deps_file" ]; then
-        while read -r dependency; do
-          update_dependencies_helper "$dependency" &
-          to_wait+=($!)
-        done <"$deps_file"
-      fi
-      wait "${to_wait[@]}"
-    else
-      git -C "$core_repo" fetch origin master && git -C "$core_repo" reset --hard origin/master
-    fi
+    git -C "$core_repo" fetch origin master && git -C "$core_repo" reset --hard origin/master
     echo '' | sudo tee /tmp/update_dependencies >/dev/null 2>&1
   fi
 }
@@ -153,8 +172,11 @@ fix_dependencies() {
 
 # Function to get PHP version if it is already installed using Homebrew.
 get_brewed_php() {
-  php_cellar="$brew_prefix"/Cellar/php
-  if [ -d "$php_cellar" ] && ! [[ "$(find "$php_cellar" -maxdepth 1 -name "$version*" | wc -l 2>/dev/null)" -eq 0 ]]; then
+  cellar="$brew_prefix"/Cellar
+  php_cellar="$cellar"/php
+  if [ -d "$cellar" ] && ! [[ "$(find "$cellar" -maxdepth 1 -name "php@$version*" | wc -l 2>/dev/null)" -eq 0 ]]; then
+    php_semver | cut -c 1-3
+  elif [ -d "$php_cellar" ] && ! [[ "$(find "$php_cellar" -maxdepth 1 -name "$version*" | wc -l 2>/dev/null)" -eq 0 ]]; then
     php_semver | cut -c 1-3
   else
     echo 'false';
@@ -167,13 +189,22 @@ add_php() {
   existing_version=$2
   add_brew_tap "$php_tap"
   update_dependencies
-  [ "${debug:?}" = "debug" ] && php_formula="$php_formula-debug"
-  if [ "$existing_version" != "false" ]; then
+  suffix="$(get_php_formula_suffix)"
+  php_formula="shivammathur/php/php@$version$suffix"
+  if [[ "$existing_version" != "false" && -z "$suffix" ]]; then
     ([ "$action" = "upgrade" ] && brew upgrade -f "$php_formula") || brew unlink "$php_formula"
   else
     brew install -f "$php_formula"
   fi
   brew link --force --overwrite "$php_formula"
+}
+
+# Function to get formula suffix
+get_php_formula_suffix() {
+  local suffix
+  [ "${debug:?}" = "debug" ] && suffix="-debug"
+  [ "${ts:?}" = "zts" ] && suffix="$suffix-zts"
+  echo "$suffix"
 }
 
 # Function to get extra version.
@@ -233,6 +264,7 @@ setup_php() {
   semver="$(php_semver)"
   extra_version="$(php_extra_version)"
   configure_php
+  link_opcache
   set_output "php-version" "$semver"
   if [ "${semver%.*}" != "$version" ]; then
     add_log "${cross:?}" "PHP" "Could not setup PHP $version"
@@ -244,7 +276,7 @@ setup_php() {
 }
 
 # Variables
-version=${1:-'8.2'}
+version=${1:-'8.3'}
 ini=${2:-'production'}
 src=${0%/*}/..
 php_formula=shivammathur/php/php@"$version"
@@ -257,6 +289,7 @@ export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_ENV_HINTS=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+export HOMEBREW_NO_INSTALL_FROM_API=1
 
 # shellcheck source=.
 . "${scripts:?}"/unix.sh

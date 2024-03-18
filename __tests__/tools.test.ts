@@ -95,7 +95,7 @@ describe('Tools tests', () => {
     ${'beta_token'}    | ${'1.2.3-beta1'}
     ${''}              | ${'1.2.3'}
   `('checking getSemverVersion: $token', async ({token, version}) => {
-    process.env['COMPOSER_TOKEN'] = token;
+    process.env['GITHUB_TOKEN'] = token;
     expect(
       await tools.getSemverVersion(getData({tool: 'tool', version: '1.2'}))
     ).toBe(version);
@@ -281,16 +281,18 @@ describe('Tools tests', () => {
   );
 
   it.each`
-    version     | php_version | url
-    ${'latest'} | ${'8.1'}    | ${'https://get.blackfire.io/blackfire-player.phar'}
-    ${'1.2.3'}  | ${'7.4'}    | ${'https://get.blackfire.io/blackfire-player-v1.2.3.phar'}
-    ${'latest'} | ${'7.4'}    | ${'https://get.blackfire.io/blackfire-player-v1.22.0.phar'}
-    ${'latest'} | ${'5.5'}    | ${'https://get.blackfire.io/blackfire-player-v1.9.3.phar'}
-    ${'latest'} | ${'7.0'}    | ${'https://get.blackfire.io/blackfire-player-v1.9.3.phar'}
+    os         | version     | php_version | url
+    ${'linux'} | ${'latest'} | ${'8.1'}    | ${'https://get.blackfire.io/blackfire-player.phar'}
+    ${'linux'} | ${'1.2.3'}  | ${'7.4'}    | ${'https://get.blackfire.io/blackfire-player-v1.2.3.phar'}
+    ${'linux'} | ${'latest'} | ${'7.4'}    | ${'https://get.blackfire.io/blackfire-player-v1.22.0.phar'}
+    ${'linux'} | ${'latest'} | ${'5.5'}    | ${'https://get.blackfire.io/blackfire-player-v1.9.3.phar'}
+    ${'linux'} | ${'latest'} | ${'7.0'}    | ${'https://get.blackfire.io/blackfire-player-v1.9.3.phar'}
+    ${'win32'} | ${'latest'} | ${'7.0'}    | ${'blackfire-player is not a windows tool'}
   `(
-    'checking addBlackfirePlayer: $version, $php_version',
-    async ({version, php_version, url}) => {
+    'checking addBlackfirePlayer: $os, $version, $php_version',
+    async ({os, version, php_version, url}) => {
       const data = getData({
+        os: os,
         tool: 'blackfire-player',
         domain: 'https://get.blackfire.io',
         version_prefix: 'v',
@@ -390,17 +392,19 @@ describe('Tools tests', () => {
 
   it.each([
     [
-      'blackfire, blackfire-player, churn, cs2pr, flex, grpc_php_plugin, parallel-lint, php-cs-fixer, phpDocumentor, phplint, phpstan, phpunit, pecl, phing, phinx, phinx:1.2.3, phive, phpunit-bridge, phpunit-polyfills, pint, php-config, phpize, protoc, symfony, vapor, wp',
+      'blackfire, blackfire-player, box, churn, cs2pr, flex, grpc_php_plugin, parallel-lint, php-cs-fixer, php-scoper, phpDocumentor, phplint, phpstan, phpunit, pecl, phing, phinx, phinx:1.2.3, phive, phpunit-bridge, phpunit-polyfills, pint, php-config, phpize, protoc, symfony, vapor, wp',
       [
         'add_tool https://github.com/shivammathur/composer-cache/releases/latest/download/composer-7.4-stable.phar,https://dl.cloudsmith.io/public/shivammathur/composer-cache/raw/files/composer-7.4-stable.phar,https://getcomposer.org/composer-stable.phar composer',
         'add_blackfire',
         'add_tool https://get.blackfire.io/blackfire-player-v1.22.0.phar blackfire-player "-V"',
+        'add_tool https://github.com/box-project/box/releases/latest/download/box.phar box "--version"',
         'add_tool https://github.com/bmitch/churn-php/releases/latest/download/churn.phar churn "-V"',
         'add_tool https://github.com/staabm/annotate-pull-request-from-checkstyle/releases/latest/download/cs2pr cs2pr "-V"',
         'add_composer_tool flex flex symfony/ global',
         'add_grpc_php_plugin latest',
         'add_tool https://github.com/php-parallel-lint/PHP-Parallel-Lint/releases/latest/download/parallel-lint.phar parallel-lint "--version"',
         'add_tool https://github.com/FriendsOfPHP/PHP-CS-Fixer/releases/download/v3.2.1/php-cs-fixer.phar php-cs-fixer "-V"',
+        'add_tool https://github.com/humbug/php-scoper/releases/latest/download/php-scoper.phar php-scoper "--version"',
         'add_tool https://github.com/phpDocumentor/phpDocumentor/releases/latest/download/phpDocumentor.phar phpDocumentor "--version"',
         'add_composer_tool phplint phplint overtrue/',
         'add_tool https://github.com/phpstan/phpstan/releases/latest/download/phpstan.phar phpstan "-V"',
@@ -450,9 +454,9 @@ describe('Tools tests', () => {
         'add_composer_tool phinx phinx robmorgan/ scoped',
         'add_tool https://github.com/phar-io/phive/releases/download/1.2.3/phive-1.2.3.phar phive',
         'add_devtools php-config',
-        'add_tool https://github.com/squizlabs/PHP_CodeSniffer/releases/latest/download/phpcbf.phar phpcbf "--version"',
+        'add_tool https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/latest/download/phpcbf.phar phpcbf "--version"',
         'add_tool https://phar.phpunit.de/phpcpd.phar phpcpd "--version"',
-        'add_tool https://github.com/squizlabs/PHP_CodeSniffer/releases/latest/download/phpcs.phar phpcs "--version"',
+        'add_tool https://github.com/PHPCSStandards/PHP_CodeSniffer/releases/latest/download/phpcs.phar phpcs "--version"',
         'add_tool https://github.com/phpDocumentor/phpDocumentor/releases/latest/download/phpDocumentor.phar phpDocumentor "--version"',
         'add_devtools phpize',
         'add_tool https://github.com/phpmd/phpmd/releases/latest/download/phpmd.phar phpmd "--version"',
@@ -480,7 +484,7 @@ describe('Tools tests', () => {
       [
         'Add-Tool https://github.com/shivammathur/composer-cache/releases/latest/download/composer-7.4-stable.phar,https://dl.cloudsmith.io/public/shivammathur/composer-cache/raw/files/composer-7.4-stable.phar,https://getcomposer.org/composer-stable.phar composer',
         'Add-Blackfire',
-        'Add-Tool https://get.blackfire.io/blackfire-player-v1.2.3.phar blackfire-player "-V"',
+        'blackfire-player is not a windows tool',
         'Add-Tool https://github.com/staabm/annotate-pull-request-from-checkstyle/releases/latest/download/cs2pr cs2pr "-V"',
         'Add-Tool https://github.com/bmitch/churn-php/releases/latest/download/churn.phar churn "-V"',
         'Add-Tool https://deployer.org/deployer.phar deployer "-V"',
@@ -570,7 +574,7 @@ describe('Tools tests', () => {
     ${'phpunit:1.2'} | ${'invalid_token'} | ${'add_log "$cross" "phpunit" "Invalid token"'}
     ${'phpunit:0.1'} | ${'no_data'}       | ${'add_log "$cross" "phpunit" "No version found with prefix 0.1."'}
   `('checking error: $tools_csv', async ({tools_csv, token, script}) => {
-    process.env['COMPOSER_TOKEN'] = token;
+    process.env['GITHUB_TOKEN'] = token;
     expect(await tools.addTools(tools_csv, '7.4', 'linux')).toContain(script);
   });
 

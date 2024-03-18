@@ -249,10 +249,10 @@ async function addExtensionDarwin(extension_csv, version) {
                 add_script += await utils.parseExtensionSource(extension, ext_prefix);
                 return;
             case /^(7\.4|8\.[0-3])relay(-v?\d+\.\d+\.\d+)?$/.test(version_extension):
-            case /^(5\.[3-6]|7\.[0-4]|8\.[0-2])blackfire(-\d+\.\d+\.\d+)?$/.test(version_extension):
+            case /^(5\.[3-6]|7\.[0-4]|8\.[0-3])blackfire(-\d+\.\d+\.\d+)?$/.test(version_extension):
             case /^couchbase|^event|^gearman$|^geos$|^pdo_oci$|^oci8$|^(pecl_)?http|^pdo_firebird$/.test(extension):
             case /^(5\.[3-6]|7\.[0-4])ioncube$/.test(version_extension):
-            case /(5\.6|7\.[0-3])phalcon3|7\.[2-4]phalcon4|(7\.4|8\.[0-2])phalcon5/.test(version_extension):
+            case /(5\.6|7\.[0-3])phalcon3|7\.[2-4]phalcon4|(7\.4|8\.[0-3])phalcon5?/.test(version_extension):
             case /(?<!5\.[3-6])(pdo_)?sqlsrv$/.test(version_extension):
             case /^(7\.[0-4]|8\.[0-2])zephir_parser(-v?\d+\.\d+\.\d+)?$/.test(version_extension):
                 add_script += await utils.customPackage(ext_name, 'extensions', extension, 'darwin');
@@ -299,11 +299,12 @@ async function addExtensionWindows(extension_csv, version) {
             case /^none$/.test(ext_name):
                 add_script += '\nDisable-AllShared';
                 break;
-            case /^(5\.[3-6]|7\.[0-4]|8\.[0-2])blackfire(-\d+\.\d+\.\d+)?$/.test(version_extension):
+            case /^(5\.[3-6]|7\.[0-4]|8\.[0-3])blackfire(-\d+\.\d+\.\d+)?$/.test(version_extension):
             case /^pdo_oci$|^oci8$|^pdo_firebird$/.test(extension):
             case /^(5\.[3-6]|7\.[0-4])ioncube$/.test(version_extension):
-            case /^7\.[0-3]phalcon3$|^7\.[2-4]phalcon4$|^(7\.4|8\.[0-2])phalcon5$/.test(version_extension):
+            case /^7\.[0-3]phalcon3$|^7\.[2-4]phalcon4$|^(7\.4|8\.[0-3])phalcon5?$/.test(version_extension):
             case /^(7\.[1-4]|8\.1)(pecl_)?http/.test(version_extension):
+            case /(?<!5\.[3-6])(pdo_)?sqlsrv$/.test(version_extension):
             case /^(7\.[0-4]|8\.[0-2])zephir_parser(-v?\d+\.\d+\.\d+)?$/.test(version_extension):
                 add_script += await utils.customPackage(ext_name, 'extensions', extension, 'win32');
                 return;
@@ -366,12 +367,12 @@ async function addExtensionLinux(extension_csv, version) {
                 add_script += await utils.parseExtensionSource(extension, ext_prefix);
                 return;
             case /^(7\.4|8\.[0-3])relay(-v?\d+\.\d+\.\d+)?$/.test(version_extension):
-            case /^(5\.[3-6]|7\.[0-4]|8\.[0-2])blackfire(-\d+\.\d+\.\d+)?$/.test(version_extension):
+            case /^(5\.[3-6]|7\.[0-4]|8\.[0-3])blackfire(-\d+\.\d+\.\d+)?$/.test(version_extension):
             case /^((5\.[3-6])|(7\.[0-2]))pdo_cubrid$|^((5\.[3-6])|(7\.[0-4]))cubrid$/.test(version_extension):
             case /^couchbase|^event|^gearman$|^geos$|^pdo_oci$|^oci8$|^(pecl_)?http|^pdo_firebird$/.test(extension):
             case /(?<!5\.[3-5])intl-\d+\.\d+$/.test(version_extension):
             case /^(5\.[3-6]|7\.[0-4])ioncube$/.test(version_extension):
-            case /^7\.[0-3]phalcon3$|^7\.[2-4]phalcon4$|^(7\.4|8\.[0-2])phalcon5$/.test(version_extension):
+            case /^7\.[0-3]phalcon3$|^7\.[2-4]phalcon4$|^(7\.4|8\.[0-3])phalcon5?$/.test(version_extension):
             case /(?<!5\.[3-6])(pdo_)?sqlsrv$/.test(version_extension):
             case /^(7\.[0-4]|8\.[0-2])zephir_parser(-v?\d+\.\d+\.\d+)?$/.test(version_extension):
                 add_script += await utils.customPackage(ext_name, 'extensions', extension, 'linux');
@@ -475,7 +476,8 @@ async function fetch(input_url, auth_token, redirect_count = 5) {
         const options = {
             hostname: url_object.hostname,
             path: url_object.pathname,
-            headers: headers
+            headers: headers,
+            agent: new https.Agent({ keepAlive: false })
         };
         const req = https.get(options, (res) => {
             if (res.statusCode === 200) {
@@ -548,7 +550,7 @@ const extensions = __importStar(__nccwpck_require__(3390));
 const tools = __importStar(__nccwpck_require__(7740));
 const utils = __importStar(__nccwpck_require__(918));
 async function getScript(os) {
-    const url = 'https://setup-php.com/support-ukraine';
+    const url = 'https://setup-php.com/sponsor';
     const filename = os + (await utils.scriptExtension(os));
     const script_path = path_1.default.join(__dirname, '../src/scripts', filename);
     const run_path = script_path.replace(os, 'run');
@@ -570,8 +572,8 @@ async function getScript(os) {
     if (ini_values_csv) {
         script += await config.addINIValues(ini_values_csv, os);
     }
-    script += '\n' + (await utils.stepLog(`#StandWithUkraine`, os));
-    script += '\n' + (await utils.addLog('$tick', 'read-more', url, os));
+    script += '\n' + (await utils.stepLog(`Sponsor setup-php`, os));
+    script += '\n' + (await utils.addLog('$tick', 'setup-php', url, os));
     fs_1.default.writeFileSync(run_path, script, { mode: 0o755 });
     return run_path;
 }
@@ -691,11 +693,8 @@ const utils = __importStar(__nccwpck_require__(918));
 async function getSemverVersion(data) {
     const search = data['version_prefix'] + data['version'];
     const url = `https://api.github.com/repos/${data['repository']}/git/matching-refs/tags%2F${search}.`;
-    let github_token = await utils.readEnv('GITHUB_TOKEN');
-    const composer_token = await utils.readEnv('COMPOSER_TOKEN');
-    if (composer_token && !github_token) {
-        github_token = composer_token;
-    }
+    const github_token = (await utils.readEnv('GITHUB_TOKEN')) ||
+        (await utils.readEnv('COMPOSER_TOKEN'));
     const response = await fetch.fetch(url, github_token);
     if (response.error || response.data === '[]') {
         data['error'] = response.error ?? `No version found with prefix ${search}.`;
@@ -825,16 +824,21 @@ async function addPackage(data) {
 }
 exports.addPackage = addPackage;
 async function addBlackfirePlayer(data) {
-    if (data['version'] == 'latest') {
-        if (/5\.[5-6]|7\.0/.test(data['php_version'])) {
-            data['version'] = '1.9.3';
-        }
-        else if (/7\.[1-4]|8\.0/.test(data['php_version'])) {
-            data['version'] = '1.22.0';
-        }
+    switch (data['os']) {
+        case 'win32':
+            return await utils.addLog('$cross', data['tool'], data['tool'] + ' is not a windows tool', 'win32');
+        default:
+            if (data['version'] == 'latest') {
+                if (/5\.[5-6]|7\.0/.test(data['php_version'])) {
+                    data['version'] = '1.9.3';
+                }
+                else if (/7\.[1-4]|8\.0/.test(data['php_version'])) {
+                    data['version'] = '1.22.0';
+                }
+            }
+            data['url'] = await getPharUrl(data);
+            return addArchive(data);
     }
-    data['url'] = await getPharUrl(data);
-    return addArchive(data);
 }
 exports.addBlackfirePlayer = addBlackfirePlayer;
 async function addCastor(data) {
@@ -1149,7 +1153,7 @@ async function getManifestURL() {
 exports.getManifestURL = getManifestURL;
 async function parseVersion(version) {
     switch (true) {
-        case /^(latest|nightly|\d+\.x)$/.test(version):
+        case /^(latest|lowest|highest|nightly|\d+\.x)$/.test(version):
             return JSON.parse((await fetch.fetch(await getManifestURL()))['data'])[version];
         default:
             switch (true) {
@@ -1370,6 +1374,23 @@ async function readPHPVersion() {
     }
     else if (versionFile !== '.php-version') {
         throw new Error(`Could not find '${versionFile}' file.`);
+    }
+    const composerLock = 'composer.lock';
+    if (fs_1.default.existsSync(composerLock)) {
+        const lockFileContents = JSON.parse(fs_1.default.readFileSync(composerLock, 'utf8'));
+        if (lockFileContents['platform-overrides'] &&
+            lockFileContents['platform-overrides']['php']) {
+            return lockFileContents['platform-overrides']['php'];
+        }
+    }
+    const composerJson = 'composer.json';
+    if (fs_1.default.existsSync(composerJson)) {
+        const composerFileContents = JSON.parse(fs_1.default.readFileSync(composerJson, 'utf8'));
+        if (composerFileContents['config'] &&
+            composerFileContents['config']['platform'] &&
+            composerFileContents['config']['platform']['php']) {
+            return composerFileContents['config']['platform']['php'];
+        }
     }
     return 'latest';
 }
@@ -1946,7 +1967,7 @@ class OidcClient {
                 .catch(error => {
                 throw new Error(`Failed to get ID Token. \n 
         Error Code : ${error.statusCode}\n 
-        Error Message: ${error.result.message}`);
+        Error Message: ${error.message}`);
             });
             const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
             if (!id_token) {
@@ -4389,6 +4410,43 @@ function copyFile(srcFile, destFile, force) {
     0;
 })(this, (function (exports) { 'use strict';
 
+    const semver = /^[v^~<>=]*?(\d+)(?:\.([x*]|\d+)(?:\.([x*]|\d+)(?:\.([x*]|\d+))?(?:-([\da-z\-]+(?:\.[\da-z\-]+)*))?(?:\+[\da-z\-]+(?:\.[\da-z\-]+)*)?)?)?$/i;
+    const validateAndParse = (version) => {
+        if (typeof version !== 'string') {
+            throw new TypeError('Invalid argument expected string');
+        }
+        const match = version.match(semver);
+        if (!match) {
+            throw new Error(`Invalid argument not valid semver ('${version}' received)`);
+        }
+        match.shift();
+        return match;
+    };
+    const isWildcard = (s) => s === '*' || s === 'x' || s === 'X';
+    const tryParse = (v) => {
+        const n = parseInt(v, 10);
+        return isNaN(n) ? v : n;
+    };
+    const forceType = (a, b) => typeof a !== typeof b ? [String(a), String(b)] : [a, b];
+    const compareStrings = (a, b) => {
+        if (isWildcard(a) || isWildcard(b))
+            return 0;
+        const [ap, bp] = forceType(tryParse(a), tryParse(b));
+        if (ap > bp)
+            return 1;
+        if (ap < bp)
+            return -1;
+        return 0;
+    };
+    const compareSegments = (a, b) => {
+        for (let i = 0; i < Math.max(a.length, b.length); i++) {
+            const r = compareStrings(a[i] || '0', b[i] || '0');
+            if (r !== 0)
+                return r;
+        }
+        return 0;
+    };
+
     /**
      * Compare [semver](https://semver.org/) version strings to find greater, equal or lesser.
      * This library supports the full semver specification, including comparing versions with different number of digits like `1.0.0`, `1.0`, `1`, and pre-release versions like `1.0.0-alpha`.
@@ -4416,20 +4474,7 @@ function copyFile(srcFile, destFile, force) {
         }
         return 0;
     };
-    /**
-     * Validate [semver](https://semver.org/) version strings.
-     *
-     * @param version Version number to validate
-     * @returns `true` if the version number is a valid semver version number, `false` otherwise.
-     *
-     * @example
-     * ```
-     * validate('1.0.0-rc.1'); // return true
-     * validate('1.0-rc.1'); // return false
-     * validate('foo'); // return false
-     * ```
-     */
-    const validate = (version) => typeof version === 'string' && /^[v\d]/.test(version) && semver.test(version);
+
     /**
      * Compare [semver](https://semver.org/) version strings using the specified operator.
      *
@@ -4455,6 +4500,24 @@ function copyFile(srcFile, destFile, force) {
         const res = compareVersions(v1, v2);
         return operatorResMap[operator].includes(res);
     };
+    const operatorResMap = {
+        '>': [1],
+        '>=': [0, 1],
+        '=': [0],
+        '<=': [-1, 0],
+        '<': [-1],
+        '!=': [-1, 1],
+    };
+    const allowedOperators = Object.keys(operatorResMap);
+    const assertValidOperator = (op) => {
+        if (typeof op !== 'string') {
+            throw new TypeError(`Invalid operator type, expected string but got ${typeof op}`);
+        }
+        if (allowedOperators.indexOf(op) === -1) {
+            throw new Error(`Invalid operator, expected one of ${allowedOperators.join('|')}`);
+        }
+    };
+
     /**
      * Match [npm semver](https://docs.npmjs.com/cli/v6/using-npm/semver) version range.
      *
@@ -4469,6 +4532,8 @@ function copyFile(srcFile, destFile, force) {
      * ```
      */
     const satisfies = (version, range) => {
+        // clean input
+        range = range.replace(/([><=]+)\s+/g, '$1');
         // handle multiple comparators
         if (range.includes('||')) {
             return range.split('||').some((r) => satisfies(version, r));
@@ -4516,64 +4581,42 @@ function copyFile(srcFile, destFile, force) {
             return false;
         return true;
     };
-    const semver = /^[v^~<>=]*?(\d+)(?:\.([x*]|\d+)(?:\.([x*]|\d+)(?:\.([x*]|\d+))?(?:-([\da-z\-]+(?:\.[\da-z\-]+)*))?(?:\+[\da-z\-]+(?:\.[\da-z\-]+)*)?)?)?$/i;
-    const validateAndParse = (version) => {
-        if (typeof version !== 'string') {
-            throw new TypeError('Invalid argument expected string');
-        }
-        const match = version.match(semver);
-        if (!match) {
-            throw new Error(`Invalid argument not valid semver ('${version}' received)`);
-        }
-        match.shift();
-        return match;
-    };
-    const isWildcard = (s) => s === '*' || s === 'x' || s === 'X';
-    const tryParse = (v) => {
-        const n = parseInt(v, 10);
-        return isNaN(n) ? v : n;
-    };
-    const forceType = (a, b) => typeof a !== typeof b ? [String(a), String(b)] : [a, b];
-    const compareStrings = (a, b) => {
-        if (isWildcard(a) || isWildcard(b))
-            return 0;
-        const [ap, bp] = forceType(tryParse(a), tryParse(b));
-        if (ap > bp)
-            return 1;
-        if (ap < bp)
-            return -1;
-        return 0;
-    };
-    const compareSegments = (a, b) => {
-        for (let i = 0; i < Math.max(a.length, b.length); i++) {
-            const r = compareStrings(a[i] || '0', b[i] || '0');
-            if (r !== 0)
-                return r;
-        }
-        return 0;
-    };
-    const operatorResMap = {
-        '>': [1],
-        '>=': [0, 1],
-        '=': [0],
-        '<=': [-1, 0],
-        '<': [-1],
-        '!=': [-1, 1],
-    };
-    const allowedOperators = Object.keys(operatorResMap);
-    const assertValidOperator = (op) => {
-        if (typeof op !== 'string') {
-            throw new TypeError(`Invalid operator type, expected string but got ${typeof op}`);
-        }
-        if (allowedOperators.indexOf(op) === -1) {
-            throw new Error(`Invalid operator, expected one of ${allowedOperators.join('|')}`);
-        }
-    };
+
+    /**
+     * Validate [semver](https://semver.org/) version strings.
+     *
+     * @param version Version number to validate
+     * @returns `true` if the version number is a valid semver version number, `false` otherwise.
+     *
+     * @example
+     * ```
+     * validate('1.0.0-rc.1'); // return true
+     * validate('1.0-rc.1'); // return false
+     * validate('foo'); // return false
+     * ```
+     */
+    const validate = (version) => typeof version === 'string' && /^[v\d]/.test(version) && semver.test(version);
+    /**
+     * Validate [semver](https://semver.org/) version strings strictly. Will not accept wildcards and version ranges.
+     *
+     * @param version Version number to validate
+     * @returns `true` if the version number is a valid semver version number `false` otherwise
+     *
+     * @example
+     * ```
+     * validate('1.0.0-rc.1'); // return true
+     * validate('1.0-rc.1'); // return false
+     * validate('foo'); // return false
+     * ```
+     */
+    const validateStrict = (version) => typeof version === 'string' &&
+        /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/.test(version);
 
     exports.compare = compare;
     exports.compareVersions = compareVersions;
     exports.satisfies = satisfies;
     exports.validate = validate;
+    exports.validateStrict = validateStrict;
 
 }));
 //# sourceMappingURL=index.js.map

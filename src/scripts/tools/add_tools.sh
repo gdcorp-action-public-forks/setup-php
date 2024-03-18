@@ -42,7 +42,7 @@ configure_composer() {
     echo '{}' | tee "$composer_json" >/dev/null
     chmod 644 "$composer_json"
   fi
-  add_env_path "${src:?}"/configs/composer.env
+  set_composer_env
   add_path "$composer_bin"
   set_composer_auth
 }
@@ -68,11 +68,25 @@ set_composer_auth() {
   fi
 }
 
+# Function to set composer environment variables.
+set_composer_env() {
+  composer_env="${src:?}"/configs/composer.env
+  if [ -n "$COMPOSER_PROCESS_TIMEOUT" ]; then
+    sed_arg="s/COMPOSER_PROCESS_TIMEOUT.*/COMPOSER_PROCESS_TIMEOUT=$COMPOSER_PROCESS_TIMEOUT/"
+    sed -i "$sed_arg" "$composer_env" 2>/dev/null || sed -i '' "$sed_arg" "$composer_env"
+  fi
+  add_env_path "$composer_env"
+}
+
 # Helper function to configure tools.
 add_tools_helper() {
   tool=$1
   extensions=()
-  if [ "$tool" = "codeception" ]; then
+  if [ "$tool" = "blackfire-player" ]; then
+    extensions+=(uuid)
+  elif [ "$tool" = "box" ]; then
+    extensions+=(iconv mbstring phar sodium)
+  elif [ "$tool" = "codeception" ]; then
     extensions+=(json mbstring)
     sudo ln -s "$scoped_dir"/vendor/bin/codecept "$scoped_dir"/vendor/bin/codeception
   elif [ "$tool" = "composer" ]; then
@@ -128,6 +142,9 @@ add_tool() {
   tool=$2
   ver_param=$3
   tool_path="$tool_path_dir/$tool"
+  if ! [ -d "$tool_path_dir" ]; then
+    sudo mkdir -p "$tool_path_dir"
+  fi
   add_path "$tool_path_dir"
   if [ -e "$tool_path" ]; then
     sudo cp -aL "$tool_path" /tmp/"$tool"
